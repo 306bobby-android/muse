@@ -1,6 +1,6 @@
-import { injectable } from 'inversify';
-import YTMusic, { Innertube, YTNodes }  from 'youtubei.js';
-import { SongMetadata } from './player.js';
+import {injectable} from 'inversify';
+import {Innertube} from 'youtubei.js';
+import {SongMetadata} from './player.js';
 import YoutubeAPI from './youtube-api.js';
 
 @injectable()
@@ -24,7 +24,6 @@ export default class RadioService {
     }
 
     try {
-      // First, get the track info for the initial video
       const trackInfo = await this.innertube!.music.getInfo(videoId);
 
       // Now, get the "Up Next" playlist for that track
@@ -34,13 +33,11 @@ export default class RadioService {
         return [];
       }
 
-      // Extract the video IDs from the "Up Next" playlist
       const videoIds = upNext.contents
         .slice(0, limit)
         .map(item => (item as any).id)
         .filter((id?: string): id is string => !!id);
 
-      // Get the full metadata for each video
       const songs: SongMetadata[] = [];
       for (const id of videoIds) {
         const videoDetails = await this.youtubeAPI.getVideo(id, false);
