@@ -49,7 +49,10 @@ export default class implements Command {
         .setDescription('if a track has chapters, split it'))
       .addBooleanOption(option => option
         .setName('skip')
-        .setDescription('skip the currently playing track'));
+        .setDescription('skip the currently playing track'))
+      .addBooleanOption(option => option
+        .setName('radio')
+        .setDescription('enable radio mode to autoplay related songs'));
   }
 
   public async execute(interaction: ChatInputCommandInteraction): Promise<void> {
