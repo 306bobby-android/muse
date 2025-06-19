@@ -5,13 +5,12 @@ import YoutubeAPI from './youtube-api.js';
 
 @injectable()
 export default class RadioService {
-  private innertube: Innertube | undefined;
+  private innertube?: Innertube;
 
-  constructor(private readonly youtubeAPI: YoutubeAPI) {
-    this.initialize();
-  }
+  constructor(private readonly youtubeAPI: YoutubeAPI) {}
 
   private async initialize() {
+    if (this.innertube) return;
     this.innertube = await Innertube.create();
   }
 
@@ -19,28 +18,52 @@ export default class RadioService {
     videoId: string,
     limit: number,
   ): Promise<SongMetadata[]> {
-    if (!this.innertube) {
-      await this.initialize();
-    }
+    await this.initialize();
 
     try {
-      const trackInfo = await this.innertube!.music.getInfo(videoId);
+      if (!this.innertube) {
+        throw new Error('Innertube not initialized');
+      }
 
-      // Now, get the "Up Next" playlist for that track
-      const upNext = await trackInfo.getUpNext();
+      const upNextPanel = await this.innertube.music.getUpNext(videoId, true);
 
-      if (!upNext.contents) {
+      let allItems: any[] = [];
+      if (upNextPanel.contents) {
+        allItems.push(...upNextPanel.contents);
+      }
+
+      // If the initial response has a continuation token, fetch the next batch of songs.
+      if (upNextPanel.continuation) {
+        const continuationResponse = await this.innertube.actions.execute('/next', { continuation: upNextPanel.continuation });
+
+        // The InnerTube API often returns continuation items in this structure.
+        const continuationItems = continuationResponse.data.onResponseReceivedActions?.[0].appendContinuationItemsAction?.continuationItems;
+
+        if (continuationItems) {
+            allItems.push(...continuationItems);
+        }
+      }
+
+      if (allItems.length === 0) {
         return [];
       }
 
-      const videoIds = upNext.contents
-        .slice(0, limit)
-        .map(item => (item as any).id)
+      // Extract video IDs, checking for different possible item structures.
+      const videoIds = allItems
+        .map((item: any) => item.playlistPanelVideoRenderer?.videoId || item.videoId)
         .filter((id?: string): id is string => !!id);
 
+      if (videoIds.length === 0) {
+        return [];
+      }
+
       const songs: SongMetadata[] = [];
-      for (const id of videoIds) {
-        const videoDetails = await this.youtubeAPI.getVideo(id, false);
+
+      // Fetch details for all songs concurrently for better performance.
+      const songPromises = videoIds.slice(0, limit).map(id => this.youtubeAPI.getVideo(id, false));
+      const songResults = await Promise.all(songPromises);
+
+      for (const videoDetails of songResults) {
         if (videoDetails.length > 0) {
           songs.push(videoDetails[0]);
         }
