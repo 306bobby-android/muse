@@ -62,6 +62,7 @@ export default class implements Command {
       shuffleAdditions: interaction.options.getBoolean('shuffle') ?? false,
       shouldSplitChapters: interaction.options.getBoolean('split') ?? false,
       skipCurrentTrack: interaction.options.getBoolean('skip') ?? false,
+      radio: interaction.options.getBoolean('radio') ?? false,
     });
   }
 

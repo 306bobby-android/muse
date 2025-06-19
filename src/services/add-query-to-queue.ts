@@ -13,6 +13,8 @@ import {SponsorBlock} from 'sponsorblock-api';
 import Config from './config.js';
 import KeyValueCacheProvider from './key-value-cache.js';
 import {ONE_HOUR_IN_SECONDS} from '../utils/constants.js';
+import RadioService from './radio-service.js';
+
 
 @injectable()
 export default class AddQueryToQueue {
@@ -24,6 +26,7 @@ export default class AddQueryToQueue {
   constructor(@inject(TYPES.Services.GetSongs) private readonly getSongs: GetSongs,
     @inject(TYPES.Managers.Player) private readonly playerManager: PlayerManager,
     @inject(TYPES.Config) private readonly config: Config,
+    @inject(TYPES.Services.RadioService) private readonly radioService: RadioService,
     @inject(TYPES.KeyValueCache) cache: KeyValueCacheProvider) {
     this.sponsorBlockTimeoutDelay = config.SPONSORBLOCK_TIMEOUT;
     this.sponsorBlock = config.ENABLE_SPONSORBLOCK
@@ -38,6 +41,7 @@ export default class AddQueryToQueue {
     shuffleAdditions,
     shouldSplitChapters,
     skipCurrentTrack,
+    radio,
     interaction,
   }: {
     query: string;
@@ -45,6 +49,7 @@ export default class AddQueryToQueue {
     shuffleAdditions: boolean;
     shouldSplitChapters: boolean;
     skipCurrentTrack: boolean;
+    radio: boolean;
     interaction: ChatInputCommandInteraction;
   }): Promise<void> {
     const guildId = interaction.guild!.id;
@@ -82,6 +87,23 @@ export default class AddQueryToQueue {
     });
 
     const firstSong = newSongs[0];
+
+    if (radio && firstSong.source === MediaSource.Youtube) {
+      const radioSongs = await this.radioService.getRadioSongs(
+        firstSong.url,
+        playlistLimit ?? 50,
+      );
+
+      radioSongs.forEach(song => {
+        player.add({
+          ...song,
+          addedInChannelId: interaction.channel!.id,
+          requestedBy: interaction.member!.user.id,
+        });
+      });
+
+      extraMsg += ` and added ${radioSongs.length} songs to the radio queue.`;
+    }
 
     let statusMsg = '';
 

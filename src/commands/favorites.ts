@@ -128,6 +128,7 @@ export default class implements Command {
       addToFrontOfQueue: interaction.options.getBoolean('immediate') ?? false,
       shouldSplitChapters: interaction.options.getBoolean('split') ?? false,
       skipCurrentTrack: interaction.options.getBoolean('skip') ?? false,
+      radio: false,
     });
   }
 
